@@ -2061,7 +2061,7 @@ DEPENDENCIES:
   - "EXConstants (from `../../../node_modules/.pnpm/expo-constants@18.0.10_expo@54.0.23_react-native@0.81.5/node_modules/expo-constants/ios`)"
   - "EXJSONUtils (from `../../../node_modules/.pnpm/expo-json-utils@0.15.0/node_modules/expo-json-utils/ios`)"
   - "EXManifests (from `../../../node_modules/.pnpm/expo-manifests@1.0.8_expo@54.0.23/node_modules/expo-manifests/ios`)"
-  - "Expo (from `../../../node_modules/.pnpm/expo@54.0.23_@babel+core@7.28.5_@expo+metro-runtime@6.1.2_react-native@0.81.5_react@19.1.0/node_modules/expo`)"
+  - "Expo (from `../../../node_modules/.pnpm/expo@54.0.23_@babel+core@7.28.5_@expo+metro-runtime@6.1.2_graphql@16.8.1_react-native@0.81.5_react@19.1.0/node_modules/expo`)"
   - "expo-dev-client (from `../../../node_modules/.pnpm/expo-dev-client@6.0.17_expo@54.0.23/node_modules/expo-dev-client/ios`)"
   - "expo-dev-launcher (from `../../../node_modules/.pnpm/expo-dev-launcher@6.0.17_expo@54.0.23/node_modules/expo-dev-launcher`)"
   - "expo-dev-menu (from `../../../node_modules/.pnpm/expo-dev-menu@7.0.16_expo@54.0.23/node_modules/expo-dev-menu`)"
@@ -2156,7 +2156,7 @@ EXTERNAL SOURCES:
   EXManifests:
     :path: "../../../node_modules/.pnpm/expo-manifests@1.0.8_expo@54.0.23/node_modules/expo-manifests/ios"
   Expo:
-    :path: "../../../node_modules/.pnpm/expo@54.0.23_@babel+core@7.28.5_@expo+metro-runtime@6.1.2_react-native@0.81.5_react@19.1.0/node_modules/expo"
+    :path: "../../../node_modules/.pnpm/expo@54.0.23_@babel+core@7.28.5_@expo+metro-runtime@6.1.2_graphql@16.8.1_react-native@0.81.5_react@19.1.0/node_modules/expo"
   expo-dev-client:
     :path: "../../../node_modules/.pnpm/expo-dev-client@6.0.17_expo@54.0.23/node_modules/expo-dev-client/ios"
   expo-dev-launcher:
