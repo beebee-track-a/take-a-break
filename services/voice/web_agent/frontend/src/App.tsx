@@ -23,7 +23,6 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUserText, setCurrentUserText] = useState<string>("");
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isAIThinking, setIsAIThinking] = useState(false); // Track if AI is processing
 
   const wsRef = useRef<VoiceWsClient | null>(null);
   const recorderRef = useRef<MicRecorder | null>(null);
@@ -96,7 +95,6 @@ export default function App() {
           if (msg.isLast) {
             setIsSpeaking(false);
             isPlayingRef.current = false;
-            setIsAIThinking(false);
             setCurrentUserText("");
             shouldStopSendingRef.current = false; // Resume sending audio for next turn
           } else if (msg.data) {
@@ -105,12 +103,10 @@ export default function App() {
               isPlayingRef.current = true;
             }
             setIsSpeaking(true);
-            setIsAIThinking(false);
             playerRef.current?.playBase64Pcm(msg.data);
           }
         } else if (msg.type === "speech_started") {
           setCurrentUserText("Listening...");
-          setIsAIThinking(false);
         } else if (msg.type === "asr_start") {
           shouldStopSendingRef.current = true; // Stop sending audio chunks immediately
           setCurrentUserText("Transcribing...");
@@ -136,7 +132,6 @@ export default function App() {
           });
         } else if (msg.type === "glm_start") {
           setCurrentUserText("AI thinking...");
-          setIsAIThinking(true);
           setMessages(prev => [...prev, {
             role: "assistant",
             text: "🤔 AI thinking...",

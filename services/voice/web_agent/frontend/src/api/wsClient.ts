@@ -21,7 +21,16 @@ export class VoiceWsClient {
       return;
     }
 
-    const url = this.options.url ?? "ws://localhost:8000/ws/voice";
+    // Get backend URL - use current origin if served from backend, otherwise use env var
+    // When served from backend, WebSocket should use same origin (just different protocol)
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 
+                      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000');
+    
+    // Convert http(s) to ws(s) for WebSocket
+    const wsUrl = backendUrl.replace(/^http/, 'ws');
+    const url = this.options.url ?? `${wsUrl}/ws/voice`;
+    
+    console.log(`🔌 Connecting to WebSocket: ${url}`);
     this.socket = new WebSocket(url);
     this.socket.binaryType = "arraybuffer";
 

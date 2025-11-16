@@ -15,6 +15,9 @@ from typing import Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 # Local imports from same directory
 from glm_voice_client import GlmVoiceClient
@@ -355,4 +358,35 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         if state.asr_future and not state.asr_future.done():
             state.asr_future.cancel()
         sessions.pop(session_id, None)
+
+
+# Serve frontend static files (must be after API routes)
+frontend_build_path = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_build_path.exists():
+    # Serve static assets (JS, CSS, etc.)
+    assets_path = frontend_build_path / "assets"
+    if assets_path.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_path)), name="assets")
+    
+    # Serve index.html for root and all other routes (SPA routing)
+    # This must be last to catch all routes not handled by API
+    index_file = frontend_build_path / "index.html"
+    
+    @app.get("/")
+    async def serve_frontend_root():
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        return {"error": "Frontend not found"}
+    
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Exclude API routes (these should have been handled already)
+        if full_path.startswith(("ws/", "health", "api/", "assets/")):
+            return {"detail": "Not Found"}
+        
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        return {"error": "Frontend not found"}
+else:
+    logger.info("Frontend build not found. Serving API only. Build frontend with 'cd frontend && npm run build'")
 
