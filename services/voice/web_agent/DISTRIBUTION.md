@@ -83,25 +83,38 @@ cp env.example .env
 
 ## Deployment to Server
 
+### Quick Public Deployment (Cloudflared)
+
+The easiest way to make your voice agent publicly accessible:
+
+```bash
+cd web_agent
+./setup.sh
+# Edit .env and add GLM_API_KEY
+./start_cloudflared.sh
+```
+
+This creates a temporary public URL perfect for demos and testing. See [QUICKSTART.md](QUICKSTART.md) for details.
+
 ### Development Mode
 Same as local setup - just run the scripts!
 
 ### Production Mode
 
-**Backend:**
+**Backend (serves both API and frontend):**
 ```bash
-cd simple
+cd web_agent
 source venv/bin/activate
 cd backend
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+# Build frontend first
+cd ../frontend
+npm run build
+cd ..
+# Start backend (serves frontend from dist/)
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-**Frontend:**
-```bash
-cd simple/frontend
-npm run build
-# Serve the dist/ folder with nginx/apache
-```
+The backend automatically serves the frontend from `frontend/dist/` - no separate server needed!
 
 **Or use Docker** (create Dockerfile):
 ```dockerfile

@@ -217,6 +217,11 @@ export default function App() {
       <header style={styles.header}>
         <h1 style={styles.title}>🎤 GLM-4-Voice Chat</h1>
         <p style={styles.subtitle}>Simple voice conversation with AI</p>
+        {!isActive && messages.length === 0 && (
+          <div style={styles.headerTip}>
+            🎧 <strong>Tip:</strong> Please wear headphones for better chat quality and to prevent audio feedback
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
@@ -316,6 +321,16 @@ const styles = {
     margin: "0.5rem 0 0 0",
     fontSize: "1rem",
     color: "#666",
+  },
+  headerTip: {
+    marginTop: "1rem",
+    padding: "0.75rem 1.5rem",
+    background: "linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)",
+    border: "2px solid #fdcb6e",
+    borderRadius: "8px",
+    color: "#856404",
+    fontSize: "0.95rem",
+    display: "inline-block",
   },
   main: {
     flex: 1,
