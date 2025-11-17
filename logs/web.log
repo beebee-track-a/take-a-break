@@ -3,8 +3,11 @@
 > vite
 
 
-  VITE v6.3.5  ready in 155 ms
+  VITE v6.3.5  ready in 208 ms
 
   ➜  Local:   http://localhost:5174/
   ➜  Network: http://192.168.1.19:5174/
   ➜  Network: http://10.5.0.2:5174/
+/Users/ming/Documents/take-a-break/apps/web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @take-a-break/web@0.1.0 dev: `vite`
+Command failed with signal "SIGHUP"
