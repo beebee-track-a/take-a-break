@@ -1,55 +1,62 @@
 <template>
-  <div class="tool-bar flex flex-center">
-    <el-tooltip placement="top" :disabled="currentAudioStatus === mediaStatus.DISABLED">
-      <!-- 使用具名插槽传递内容 -->
-      <template #content>
-        {{ audioTip }}
-      </template>
-      <i
-        class="iconfont pointer icon-voice1"
-        :class="{
-          opened: currentAudioStatus === mediaStatus.OPENED,
-          unclose: currentAudioStatus === mediaStatus.UNCLOSE,
-          disabled: currentAudioStatus === mediaStatus.DISABLED,
-        }"
-        @click="handleAudio"
-      ></i>
-    </el-tooltip>
-    <!-- Video button removed - only audio mode supported -->
-    <div class="tool-bar__content flex1 flex flex-center">
-      <img
-        v-if="currentBarStatus === toolBarStatus.VOICING"
-        src="@/assets/images/user-speaking.gif"
-        alt="Recording in progress"
-      />
-      <label
-        :class="{
-          disconnected: currentBarStatus === toolBarStatus.DISCONNECTED,
-          ready: currentBarStatus === toolBarStatus.READY,
-        }"
-        >{{ toolBarTxt }}</label
-      >
+  <div class="tool-bar">
+    <div v-if="currentBarStatus === toolBarStatus.DISCONNECTED" class="tool-bar__start">
+      <button class="tool-bar__start-btn" type="button" @click="clearAndConnect">
+        Start New Conversation
+      </button>
     </div>
+    <div v-else class="tool-bar__inner">
+      <el-tooltip placement="top" :disabled="currentAudioStatus === mediaStatus.DISABLED">
+        <template #content>
+          {{ audioTip }}
+        </template>
+        <button
+          class="tool-bar__btn control"
+          :class="{
+            opened: currentAudioStatus === mediaStatus.OPENED,
+            unclose: currentAudioStatus === mediaStatus.UNCLOSE,
+            disabled: currentAudioStatus === mediaStatus.DISABLED,
+            paused: currentAudioStatus !== mediaStatus.OPENED,
+          }"
+          type="button"
+          @click="handleAudio"
+        >
+          <span
+            class="shape"
+            :class="currentAudioStatus === mediaStatus.OPENED ? 'shape-pause' : 'shape-play'"
+            aria-hidden="true"
+          ></span>
+        </button>
+      </el-tooltip>
 
-    <el-tooltip
-      placement="top"
-      :disabled="currentBarStatus === toolBarStatus.DISCONNECTING || disabledConnectTip"
-    >
-      <!-- 使用具名插槽传递内容 -->
-      <template #content>
-        {{ connectTip }}
-      </template>
-      <i
-        v-if="currentBarStatus === toolBarStatus.DISCONNECTED"
-        class="iconfont pointer icon-connect"
-        @click="clearAndConnect"
-      ></i>
-      <i
-        v-else-if="currentBarStatus === toolBarStatus.DISCONNECTING"
-        class="iconfont pointer icon-loading"
-      ></i>
-      <i v-else class="iconfont pointer icon-disconnect" @click="handleDisconnect"></i>
-    </el-tooltip>
+      <div class="tool-bar__content">
+        <img
+          v-if="currentBarStatus === toolBarStatus.VOICING"
+          src="@/assets/images/user-speaking.gif"
+          alt="Recording in progress"
+        />
+        <label
+          :class="{
+            disconnected: currentBarStatus === toolBarStatus.DISCONNECTED,
+            ready: currentBarStatus === toolBarStatus.READY,
+          }"
+          >{{ toolBarTxt }}</label
+        >
+      </div>
+
+      <el-tooltip
+        placement="top"
+        :disabled="currentBarStatus === toolBarStatus.DISCONNECTING || disabledConnectTip"
+      >
+        <template #content>
+          {{ connectTip }}
+        </template>
+        <button class="tool-bar__btn stop" type="button" @click="handleDisconnect">
+          <span class="shape shape-stop" aria-hidden="true"></span>
+          <span class="stop-text">Close</span>
+        </button>
+      </el-tooltip>
+    </div>
   </div>
 </template>
 
@@ -149,7 +156,7 @@ export default {
         case this.toolBarStatus.DISCONNECTING:
           return "Disconnecting...";
         case this.toolBarStatus.DISCONNECTED:
-          return "Connection disconnected";
+          return "Ready to chat";
         default:
           return "";
       }
@@ -302,38 +309,159 @@ export default {
 
 <style scoped lang="less">
 .tool-bar {
-  height: 50px;
-  border-radius: 8px;
-  border: 1px solid var(--boxBorderColor-1);
-  padding: 0 8px;
-  gap: 4px;
-  &__content {
-    margin: 0 4px;
-    border-radius: 8px;
-    background: #f7f8fa;
-    height: 36px;
-    img {
-      height: 32px;
+  width: 100%;
+  &__start {
+    width: 100%;
+  }
+  &__start-btn {
+    width: 100%;
+    height: 48px;
+    border-radius: 20px;
+    border: none;
+    background: linear-gradient(135deg, #0fcf6d, #0b8f50);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 16px 40px -18px rgba(11, 143, 80, 0.55);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 44px -18px rgba(11, 143, 80, 0.65);
     }
-    label {
-      color: #8d8e99;
-      font-size: 16px;
+    &:active {
+      transform: translateY(0);
+    }
+  }
+  &__inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #f3f4f6;
+    border-radius: 22px;
+    border: 1px solid var(--va-soft-border);
+    box-shadow: 0 12px 30px -20px rgba(0, 0, 0, 0.2), inset 0 1px 0 #fff;
+  }
+  &__btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--va-soft-border);
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.25);
+    &.control {
+      color: var(--va-text-main);
+      background: linear-gradient(145deg, #ffffff, #f6f7fb);
+      position: relative;
+      overflow: hidden;
+    }
+    &.stop {
+      background: #c0162c;
+      color: #ffffff;
+      border-color: #c0162c;
+      box-shadow: 0 14px 30px -18px rgba(192, 22, 44, 0.45);
+      gap: 6px;
+      padding: 0 12px;
+      border-radius: 18px;
+      height: 44px;
+      min-width: 92px;
+      justify-content: center;
+    }
+    i {
+      color: inherit;
+    }
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px -18px rgba(0, 0, 0, 0.3);
+    }
+    &.disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      box-shadow: none;
+    }
+    &.opened {
+      background: #fff;
+      border-color: #d1d5db;
+      color: #111827;
+    }
+    &.unclose {
+      background: rgba(241, 52, 58, 0.08);
+      border-color: rgba(241, 52, 58, 0.2);
+      color: #f1343a;
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    .shape {
+      display: block;
+      position: relative;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .shape-play {
+      width: 0;
+      height: 0;
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      border-left: 12px solid currentColor;
+      margin-left: 2px;
+    }
+    .shape-pause {
+      display: flex;
+      gap: 4px;
+    }
+    .shape-pause::before,
+    .shape-pause::after {
+      content: "";
+      display: block;
+      width: 4px;
+      height: 14px;
+      background: currentColor;
+      border-radius: 2px;
+    }
+    .shape-stop {
+      width: 14px;
+      height: 14px;
+      background: currentColor;
+      border-radius: 3px;
+    }
+  }
+  &__content {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid var(--va-soft-border);
+    padding: 10px 12px;
+    min-height: 44px;
+    img {
+      height: 34px;
+    }
+      label {
+      color: var(--va-text-sub);
+      font-size: 14px;
+      font-weight: 600;
       &.ready {
-        color: #4082f5;
+        color: var(--va-primary-blue);
       }
       &.disconnected {
-        color: #f01d24;
+        color: var(--va-text-sub);
       }
     }
   }
   i {
     display: block;
-    font-size: 26px;
-    color: #5d6e7f;
-    width: 36px;
-    height: 36px;
-    line-height: 36px;
-    border-radius: 6px;
+    font-size: 22px;
+    color: #111827;
+    width: 22px;
+    height: 22px;
     &.icon-loading {
       background-image: url("@/assets/images/loading.gif");
       background-repeat: no-repeat;
@@ -342,31 +470,12 @@ export default {
         background-color: #fff;
       }
     }
-    &:hover {
-      background-color: rgba(19, 18, 18, 0.05);
-    }
-    &.opened {
-      color: #f1343a;
-      background-color: rgba(241, 52, 58, 0.08);
-      &:hover {
-        background-color: rgba(241, 52, 58, 0.12);
-      }
-    }
-    &.unclose {
-      color: #f1343a;
-      background-color: rgba(241, 52, 58, 0.08);
-      &:hover {
-        background-color: rgba(241, 52, 58, 0.12);
-      }
-      opacity: 0.4;
-    }
-    &.disabled {
-      color: #c3c4cc;
-      cursor: not-allowed;
-      &:hover {
-        background-color: #fff;
-      }
-    }
+  }
+  .stop-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1;
   }
 }
 </style>
