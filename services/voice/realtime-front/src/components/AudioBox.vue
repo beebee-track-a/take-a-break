@@ -322,9 +322,11 @@ export default {
 .audio-box {
   box-sizing: border-box;
   width: 100%;
-  padding: 8px;
-  background-color: #d1e3ff;
-  border-radius: 8px;
+  padding: 10px 12px;
+  background-color: #f5f7fb;
+  border: 1px solid var(--va-soft-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 28px -20px rgba(0, 0, 0, 0.25);
   &__wave {
     width: 100%;
     display: flex;
@@ -335,8 +337,9 @@ export default {
       position: relative;
       width: 100%;
       min-height: 36px;
-      border-radius: 4px;
-      background-color: rgba(255, 255, 255, 0.28);
+      border-radius: 10px;
+      border: 1px dashed var(--va-soft-border);
+      background-color: #fff;
       &:hover {
         .audio-box__wave-hover {
           opacity: 1;
@@ -360,25 +363,26 @@ export default {
       height: 100%;
       width: 0;
       mix-blend-mode: overlay;
-      background-color: rgba(255, 255, 255, 0.5);
+      background-color: rgba(17, 24, 39, 0.05);
       opacity: 0;
       transition: opacity 0.2s ease;
     }
     .iconfont {
       font-size: 17px;
-      color: #555;
+      color: #374151;
       &.icon-download {
         font-size: 16.5px;
       }
     }
   }
   &.output {
-    background-color: #f7f8fa;
+    background-color: #fff;
     .audio-box__wave-inner {
-      background-color: rgba(224, 224, 224, 0.4);
+      background-color: #f7f8fa;
+      border-color: var(--va-soft-border);
     }
     .audio-box__wave-hover {
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: rgba(59, 130, 246, 0.1);
     }
   }
 }

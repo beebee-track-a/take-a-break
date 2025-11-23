@@ -11,8 +11,16 @@
 
 <style lang="less" scoped>
 .loading {
+  padding: 20px 16px;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid var(--va-soft-border);
+  box-shadow: 0 12px 30px -22px rgba(0, 0, 0, 0.28);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
   p {
-    color: #8d8e99;
+    color: var(--va-text-sub);
     font-size: 14px;
     line-height: 22px;
   }
@@ -29,11 +37,11 @@
     0%,
     100% {
       transform: scale(0.5);
-      background-color: #abc7f9;
+      background: linear-gradient(135deg, #bae6fd, #60a5fa);
     }
     50% {
       transform: scale(1);
-      background-color: #134cff;
+      background: linear-gradient(135deg, #60a5fa, #3b82f6);
     }
   }
 }

@@ -266,8 +266,13 @@ export default {
 <style lang="less" scoped>
 .output-audio {
   min-width: 280px;
-  max-width: 300px;
+  max-width: 340px;
   width: 100%;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid var(--va-soft-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px -22px rgba(0, 0, 0, 0.3);
   .error-text {
     margin: 2px 0;
     font-size: 12px;
@@ -275,7 +280,8 @@ export default {
     color: #f01d24;
   }
   ::v-deep .audio-box.output {
-    background: #efefef;
+    background: #f7f8fb;
+    border-color: var(--va-soft-border);
   }
 }
 .auto-play-audio {
@@ -288,5 +294,6 @@ export default {
   appearance: none;
   -webkit-user-drag: none;
   user-drag: none;
+  display: block;
 }
 </style>

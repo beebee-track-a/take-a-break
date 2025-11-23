@@ -1,40 +1,55 @@
 <template>
   <div class="experience">
-    <div class="experience__header flex flex-between">
-      <h3>Voice Call</h3>
-    </div>
-    <div class="experience__content flex flex-x-between">
-      <div class="experience__content__left">
-        <!--对话消息框-->
-        <MessageBox
-          ref="refMessageBox"
-          :class="{ 'show-tool-bar': isShowToolBar }"
-          :messageList="messageList"
-          :isConnecting="isConnecting"
-          :isShowWelcome="false"
-          @onClickMedia="clickMedia"
-        />
-        <!--底部多媒体工具条-->
-        <ToolBar
-          v-show="isShowToolBar"
-          ref="refToolBar"
-          :isConnected="isConnected"
-          :vadType="vadType"
-          :enableVideo="enableVideo"
-          @onPermissionError="audioPermisError"
-          @onOpenVideoOrScreen="openVideoOrScreen"
-          @onCloseVideoOrScreen="enableVideo = false"
-          @onDisconnect="closeWS"
-          @onClearAndConnect="clearAndConnect"
-          @onAudioData="audioData"
-          @onListenAudioData="listenAudioData"
-          @onVadStatus="vadStatus"
-          @onOpenAudio="enableAudio = true"
-          @onCloseAudio="enableAudio = false"
-        />
+    <div class="experience__content">
+      <div class="experience__conversation">
+        <div class="app-container">
+          <div class="app-header flex flex-between">
+            <div class="app-header__titles">
+              <p class="eyebrow">Voice Companion</p>
+              <h3>Voice Call</h3>
+            </div>
+            <span
+              class="status-badge"
+              :class="{
+                connected: isConnected,
+                connecting: isConnecting,
+              }"
+            >
+              {{ isConnecting ? "Connecting..." : isConnected ? "Live" : "Ready" }}
+            </span>
+          </div>
+          <div class="content-wrapper">
+            <MessageBox
+              ref="refMessageBox"
+              :class="{ 'show-tool-bar': isShowToolBar }"
+              :messageList="messageList"
+              :isConnecting="isConnecting"
+              :isShowWelcome="messageList.length === 0"
+              @onClickMedia="clickMedia"
+            />
+          </div>
+          <div class="input-container" v-show="isShowToolBar">
+            <ToolBar
+              ref="refToolBar"
+              :isConnected="isConnected"
+              :vadType="vadType"
+              :enableVideo="enableVideo"
+              @onPermissionError="audioPermisError"
+              @onOpenVideoOrScreen="openVideoOrScreen"
+              @onCloseVideoOrScreen="enableVideo = false"
+              @onDisconnect="closeWS"
+              @onClearAndConnect="clearAndConnect"
+              @onAudioData="audioData"
+              @onListenAudioData="listenAudioData"
+              @onVadStatus="vadStatus"
+              @onOpenAudio="enableAudio = true"
+              @onCloseAudio="enableAudio = false"
+            />
+          </div>
+        </div>
       </div>
-      <!--右侧参数配置面板-->
       <OperatorPanel
+        class="experience__panel"
         :panelParams="panelParams"
         :isConnected="isConnected"
         :enableVideo="enableVideo"
@@ -620,38 +635,107 @@ export default {
 
 <style scoped lang="less">
 .experience {
-  background-color: #fff;
   height: 100%;
-  &__header {
-    height: 59px;
-    border-bottom: 1px solid rgba(224, 224, 224, 0.6);
-    padding: 0 24px;
-    font-size: 14px;
-    h3 {
-      color: #131212;
-      font-size: 20px;
-      font-weight: 500;
-      margin-right: 12px;
+  padding: 24px;
+  background: var(--va-bg-color);
+  &__content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 24px;
+    height: 100%;
+  }
+  &__conversation {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    min-width: 0;
+  }
+  &__panel {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: var(--va-strong-shadow);
+    overflow: hidden;
+    min-width: 360px;
+  }
+}
+
+.app-container {
+  width: 100%;
+  max-width: 480px;
+  background: var(--va-card-bg);
+  border-radius: 32px;
+  box-shadow: var(--va-shadow-soft);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 0;
+  min-height: 680px;
+}
+
+.app-header {
+  padding: 8px 8px 4px;
+  align-items: center;
+  h3 {
+    color: var(--va-text-main);
+    font-size: 22px;
+    margin: 4px 0 0;
+    font-weight: 700;
+  }
+  .eyebrow {
+    color: var(--va-text-sub);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 600;
+  &.connecting {
+    background: #fff7ed;
+    color: #c2410c;
+  }
+  &.connected {
+    background: #ecfdf3;
+    color: #15803d;
+  }
+}
+
+.content-wrapper {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+}
+
+.input-container {
+  padding: 8px 8px 20px;
+}
+
+.show-tool-bar {
+  height: 100%;
+}
+
+@media (max-width: 1200px) {
+  .experience {
+    padding: 12px;
+    &__content {
+      grid-template-columns: 1fr;
     }
-    .usage-guide {
-      color: #5e5e66;
-      i {
-        margin-right: 8px;
-      }
+    &__panel {
+      min-width: 0;
     }
   }
-  &__content {
-    height: calc(100% - 60px);
-    &__left {
-      flex: 1;
-      box-sizing: border-box;
-    }
-    .show-tool-bar {
-      height: calc(100% - 100px);
-    }
-    .tool-bar {
-      margin: 24px;
-    }
+  .app-container {
+    max-width: 100%;
+    min-height: 640px;
   }
 }
 </style>
