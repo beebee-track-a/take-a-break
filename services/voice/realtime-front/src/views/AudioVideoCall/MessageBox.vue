@@ -36,40 +36,49 @@
               class="avatar"
             />
             <div class="bubble">
-              <template v-if="item.type === MSG_TYPE.CLIENT">
-                <video
-                  v-if="item.videoUrlContent"
-                  class="mb10"
-                  :src="item.videoUrlContent"
-                  controls
-                  preload="auto"
-                />
-                <AudioBox
-                  v-if="item.audioUrl"
-                  :audioUrl="item.audioUrl"
-                  width="100%"
-                  height="38"
-                  :uniqueIndex="index"
-                />
+              <!-- 历史记录模式：只显示文本 -->
+              <template v-if="isHistoryMode">
                 <p v-if="item.textContent && item.textContent.length > 0">
                   {{ item.textContent.join("") }}
                 </p>
               </template>
+              <!-- 实时聊天模式：显示完整内容 -->
               <template v-else>
-                <OutputAudio
-                  v-if="item.responseType === RESPONSE_TYPE.AUDIO"
-                  ref="refOutputAudio"
-                  :readonly="true"
-                  :options="item.audioData"
-                  :status="item.answerStatus"
-                  @onStopped="audioStopped"
-                />
-                <p
-                  v-if="item.textContent && item.textContent.length > 0"
-                  :class="{ 'only-text': item.responseType !== RESPONSE_TYPE.AUDIO }"
-                >
-                  {{ item.textContent.join("") }}
-                </p>
+                <template v-if="item.type === MSG_TYPE.CLIENT">
+                  <video
+                    v-if="item.videoUrlContent"
+                    class="mb10"
+                    :src="item.videoUrlContent"
+                    controls
+                    preload="auto"
+                  />
+                  <AudioBox
+                    v-if="item.audioUrl"
+                    :audioUrl="item.audioUrl"
+                    width="100%"
+                    height="38"
+                    :uniqueIndex="index"
+                  />
+                  <p v-if="item.textContent && item.textContent.length > 0">
+                    {{ item.textContent.join("") }}
+                  </p>
+                </template>
+                <template v-else>
+                  <OutputAudio
+                    v-if="item.responseType === RESPONSE_TYPE.AUDIO"
+                    ref="refOutputAudio"
+                    :readonly="true"
+                    :options="item.audioData"
+                    :status="item.answerStatus"
+                    @onStopped="audioStopped"
+                  />
+                  <p
+                    v-if="item.textContent && item.textContent.length > 0"
+                    :class="{ 'only-text': item.responseType !== RESPONSE_TYPE.AUDIO }"
+                  >
+                    {{ item.textContent.join("") }}
+                  </p>
+                </template>
               </template>
             </div>
           </div>
@@ -115,6 +124,11 @@ export default {
     isShowWelcome: {
       type: Boolean,
       default: true,
+    },
+    // 是否是历史记录模式
+    isHistoryMode: {
+      type: Boolean,
+      default: false,
     },
   },
   components: {
