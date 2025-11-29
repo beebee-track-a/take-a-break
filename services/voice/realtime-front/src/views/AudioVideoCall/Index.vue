@@ -1,5 +1,13 @@
 <template>
   <div class="experience">
+    <ChatHistorySidebar
+      :sessions="sessions"
+      :currentSessionId="currentSessionId"
+      :userId="getUserId()"
+      @session-selected="switchSession"
+      @new-session="handleNewSession"
+      @delete-session="handleDeleteSession"
+    />
     <div class="experience__content">
       <div class="experience__conversation">
         <div class="app-container">
@@ -24,7 +32,8 @@
               :class="{ 'show-tool-bar': isShowToolBar }"
               :messageList="messageList"
               :isConnecting="isConnecting"
-              :isShowWelcome="messageList.length === 0"
+              :isShowWelcome="messageList.length === 0 && !isHistoryMode"
+              :isHistoryMode="isHistoryMode"
               @onClickMedia="clickMedia"
             />
           </div>
@@ -73,6 +82,7 @@ import { ref } from "vue";
 import MessageBox from "./MessageBox.vue";
 import ToolBar from "./ToolBar.vue";
 import OperatorPanel from "./OperatorPanel.vue";
+import ChatHistorySidebar from "@/components/ChatHistorySidebar.vue";
 import {
   MEDIA_TYPE,
   MSG_TYPE,
@@ -87,6 +97,14 @@ import {
   blobToBase64, // blob转base64
 } from "@/utils/stream";
 import emitter from "@/utils/event";
+import {
+  createSession,
+  saveMessage,
+  loadSession,
+  listSessions,
+  deleteSession,
+} from "@/utils/chatHistory";
+import { getCurrentUser } from "@/utils/auth";
 
 export default {
   name: "AudioVideoCall",
@@ -167,6 +185,10 @@ export default {
       requestId: "", // 客户端请求消息的id
       resFinished: true, // 服务端是否返回完成
       sendAudioLimit: 10000, // 发送音频大小限制
+      currentSessionId: null, // 当前会话ID
+      sessions: [], // 会话列表
+      isHistoryMode: false, // 是否是历史记录模式（只显示文本，不显示音频）
+      sessionCache: {}, // 会话缓存 { sessionId: messages[] }
     };
   },
   watch: {
@@ -204,7 +226,7 @@ export default {
       this.openWS(MEDIA_TYPE.AUDIO);
     },
     // 初始化websocket连接
-    openWS(mediaType = MEDIA_TYPE.AUDIO) {
+    async openWS(mediaType = MEDIA_TYPE.AUDIO) {
       // 创建 SockJS 连接
       if (!this.apiKey) {
         this.$message.warning("Please enter APIKEY!");
@@ -214,6 +236,10 @@ export default {
         console.log("WebSocket 连接已经打开");
         return;
       }
+      
+      // Reset history mode when starting new chat
+      this.isHistoryMode = false;
+      
       this.isConnecting = true;
       this.isConnected = false;
       this.isShowToolBar = true; // Show toolbar immediately for audio mode
@@ -242,6 +268,10 @@ export default {
         this.currentAudioBlob = null;
         this.currentVideoBlob = null;
         console.log("%c Connection closed", "color: #ff59ff");
+        // Refresh session list after a delay to allow Firestore writes to complete
+        setTimeout(() => {
+          this.loadSessionsList();
+        }, 1000);
       };
       // 监听连接错误事件
       this.sock.onerror = (e) => {
@@ -253,6 +283,14 @@ export default {
     },
     // 断开websocket连接
     closeWS() {
+      // Flush any pending session list refresh timer
+      if (this._sessionListRefreshTimer) {
+        clearTimeout(this._sessionListRefreshTimer);
+        this._sessionListRefreshTimer = null;
+        // Refresh session list in background (don't await)
+        this.loadSessionsList();
+      }
+      
       // 关闭连接
       if (this.sock && this.sock.readyState === WebSocket.OPEN) {
         this.sock.close();
@@ -402,22 +440,26 @@ export default {
         if (resIndex !== -1) {
           const target = this.messageList[resIndex];
           target.audioData.push({ data });
-          this.messageList.splice(resIndex, 1, { ...target });
+          const updatedMessage = { ...target };
+          this.messageList.splice(resIndex, 1, updatedMessage);
+          // Don't save here - wait for transcript to arrive via addAudioTextToList
         } else {
-          this.messageList.push({
+          const newMessage = {
             id,
             type,
             responseType: this.responseType,
             answerStatus: ANSWER_STATUS.OUTPUT,
             audioData: [{ data }],
             textContent: [],
-          });
+          };
+          this.messageList.push(newMessage);
           this.scrollToBottom();
+          // Don't save here - wait for transcript to arrive via addAudioTextToList
         }
         // console.log('---添加服务返回的音频到对话框--addAudioVideoToList---')
       } else {
         if (data && data.size > this.sendAudioLimit) {
-          this.messageList.push({
+          const newMessage = {
             id,
             type,
             videoUrlContent: this.currentVideoBlob
@@ -425,40 +467,56 @@ export default {
               : null,
             audioUrl: URL.createObjectURL(data),
             textContent: [],
-          });
+          };
+          this.messageList.push(newMessage);
           this.currentVideoBlob = null;
           this.scrollToBottom();
           console.log("---添加用户发送的音频到对话框--data?.size---:", data?.size);
+          // Don't save here - wait for transcript to arrive via addAudioTextToList
         }
       }
     },
     // 添加语音的文本到对话框
     addAudioTextToList(id, data, type) {
-      if (!data) return;
+      if (!data) {
+        console.warn('addAudioTextToList: No data provided');
+        return;
+      }
+      console.log('addAudioTextToList: Received transcript', { id, data, type, dataLength: data.length });
       const index = this.messageList.findIndex((item) => item.id === id);
       if (index !== -1) {
         const target = this.messageList[index];
         target.textContent.push(data);
-        this.messageList.splice(index, 1, { ...target });
+        const updatedMessage = { ...target };
+        this.messageList.splice(index, 1, updatedMessage);
+        console.log('addAudioTextToList: Updated existing message, full transcript:', updatedMessage.textContent.join(''));
+        // Save to history after updating message
+        this.saveMessageToHistory(updatedMessage);
       } else {
+        let newMessage;
         if (type === MSG_TYPE.SERVER) {
-          this.messageList.push({
+          newMessage = {
             id,
             type,
             responseType: this.responseType,
             answerStatus: ANSWER_STATUS.OUTPUT,
             audioData: [],
             textContent: [data],
-          });
+          };
+          this.messageList.push(newMessage);
         } else {
-          this.messageList.push({
+          newMessage = {
             id,
             type,
             audioUrl: "",
             textContent: [data],
-          });
+          };
+          this.messageList.push(newMessage);
         }
         this.scrollToBottom();
+        console.log('addAudioTextToList: Created new message with transcript:', newMessage.textContent.join(''));
+        // Save to history after adding message
+        this.saveMessageToHistory(newMessage);
       }
     },
     // 更新响应状态
@@ -467,7 +525,10 @@ export default {
       if (resIndex !== -1) {
         const target = this.messageList[resIndex];
         target.answerStatus = data;
-        this.messageList.splice(resIndex, 1, { ...target });
+        const updatedMessage = { ...target };
+        this.messageList.splice(resIndex, 1, updatedMessage);
+        // Save to history after updating status
+        this.saveMessageToHistory(updatedMessage);
       }
     },
     /** ********************************************** 事件推送 ******************************************/
@@ -552,12 +613,14 @@ export default {
       this.enableVideo = true; // 开启视频
     },
     // 工具条发起，清空消息并重新连接
-    clearAndConnect() {
+    async clearAndConnect() {
       this.isFirstOpenMedia = true; // 重置首次打开媒体
       this.clearObjectURL(); // 清空残留对象url
       this.messageList = []; // 清空消息
       this.isConnecting = false; // 确保连接状态重置
       this.isConnected = false; // 确保连接状态重置
+      // 创建新会话
+      await this.createNewSession();
       this.openWS(MEDIA_TYPE.AUDIO); // Always use audio mode
     },
     // 视频组件发起，打开视频或屏幕共享成功
@@ -612,23 +675,231 @@ export default {
     scrollToBottom() {
       this.$refs.refMessageBox.scrollToBottom();
     },
+    /** ********************************************** Chat History Management ******************************************/
+    // 获取当前用户ID
+    getUserId() {
+      const user = getCurrentUser();
+      return user ? user.uid : null;
+    },
+    // 创建新会话
+    async createNewSession() {
+      const userId = this.getUserId();
+      if (!userId) {
+        console.warn('User not authenticated, cannot create session');
+        return;
+      }
+
+      try {
+        const sessionId = await createSession(userId);
+        if (!sessionId) {
+          console.error('Failed to create session - createSession returned null');
+          return;
+        }
+        this.currentSessionId = sessionId;
+        this.messageList = [];
+        await this.loadSessionsList();
+      } catch (error) {
+        console.error('Error creating session:', error);
+      }
+    },
+    // 加载会话列表
+    async loadSessionsList() {
+      const userId = this.getUserId();
+      if (!userId) return;
+
+      try {
+        this.sessions = await listSessions(userId);
+      } catch (error) {
+        console.error('Error loading sessions:', error);
+      }
+    },
+    // 预加载所有会话消息（后台静默加载）
+    async preloadAllSessions() {
+      const userId = this.getUserId();
+      if (!userId || this.sessions.length === 0) return;
+
+      // 并行加载所有会话（静默，不阻塞UI）
+      this.sessions.forEach(async (session) => {
+        if (!this.sessionCache[session.id]) {
+          try {
+            const messages = await loadSession(userId, session.id);
+            this.sessionCache[session.id] = messages;
+          } catch (error) {
+            console.error('Error preloading session:', session.id, error);
+          }
+        }
+      });
+    },
+    // 切换到指定会话
+    async switchSession(sessionId) {
+      if (!sessionId || sessionId === this.currentSessionId) return;
+
+      const userId = this.getUserId();
+      if (!userId) return;
+
+      try {
+        // 关闭当前WebSocket连接
+        this.closeWS();
+        
+        // 清空当前消息列表
+        this.clearObjectURL();
+        
+        // 设置状态
+        this.currentSessionId = sessionId;
+        this.isHistoryMode = true;
+
+        // 检查缓存 - 有缓存直接用，无延迟
+        if (this.sessionCache[sessionId]) {
+          this.messageList = this.sessionCache[sessionId];
+        } else {
+          // 从 Firebase 加载
+          this.messageList = [];
+          const messages = await loadSession(userId, sessionId);
+          this.sessionCache[sessionId] = messages; // 缓存
+          this.messageList = messages;
+        }
+
+        // 滚动到底部
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
+      } catch (error) {
+        console.error('Error switching session:', error);
+      }
+    },
+      // 处理新建会话
+    async handleNewSession() {
+      // 关闭当前WebSocket连接
+      this.closeWS();
+      // 清空消息
+      this.clearObjectURL();
+      this.messageList = [];
+      // 重置session ID和模式
+      this.currentSessionId = null;
+      this.isHistoryMode = false;
+    },
+    // 删除会话
+    async handleDeleteSession(sessionId) {
+      const userId = this.getUserId();
+      if (!userId) return;
+
+      try {
+        await deleteSession(userId, sessionId);
+        
+        // 清除缓存
+        delete this.sessionCache[sessionId];
+        
+        // 如果删除的是当前会话，创建新会话
+        if (sessionId === this.currentSessionId) {
+          await this.createNewSession();
+        } else {
+          // 重新加载会话列表
+          await this.loadSessionsList();
+        }
+      } catch (error) {
+        console.error('Error deleting session:', error);
+      }
+    },
+    // 保存消息到历史记录
+    async saveMessageToHistory(message) {
+      if (!message) {
+        console.warn('saveMessageToHistory: No message provided');
+        return;
+      }
+
+      // 只保存有 transcript 的消息（textContent 有内容）
+      const hasTranscript = message.textContent && 
+        Array.isArray(message.textContent) && 
+        message.textContent.length > 0 && 
+        message.textContent.some(text => text && text.trim().length > 0);
+      
+      if (!hasTranscript) {
+        // 没有 transcript，不保存（等待 transcript 到达后再保存）
+        console.log('saveMessageToHistory: Skipping - no transcript yet', {
+          messageId: message.id,
+          textContent: message.textContent,
+        });
+        return;
+      }
+      
+      console.log('saveMessageToHistory: Has transcript, proceeding to save', {
+        messageId: message.id,
+        transcript: message.textContent.join(''),
+      });
+
+      const userId = this.getUserId();
+      if (!userId) {
+        console.warn('saveMessageToHistory: No user ID');
+        return;
+      }
+
+      // Ensure a session exists before saving
+      if (!this.currentSessionId) {
+        console.log('saveMessageToHistory: Creating new session...');
+        try {
+          await this.createNewSession();
+          if (!this.currentSessionId) {
+            console.error('saveMessageToHistory: Failed to create session');
+            return;
+          }
+          console.log('saveMessageToHistory: Session created:', this.currentSessionId);
+        } catch (error) {
+          console.error('Error creating session before saving message:', error);
+          return;
+        }
+      }
+
+      console.log('saveMessageToHistory: Saving message:', {
+        userId,
+        sessionId: this.currentSessionId,
+        messageId: message.id,
+        messageType: message.type,
+      });
+
+      try {
+        await saveMessage(userId, this.currentSessionId, message);
+        console.log('saveMessageToHistory: Message saved successfully');
+        // Refresh session list to show updated timestamp
+        // Use a small delay to batch multiple message saves
+        if (!this._sessionListRefreshTimer) {
+          this._sessionListRefreshTimer = setTimeout(async () => {
+            await this.loadSessionsList();
+            this._sessionListRefreshTimer = null;
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Error saving message to history:', error);
+      }
+    },
   },
   beforeDestroy() {
     this.clearObjectURL(); // 清空残留对象url
     this.closeWS(); // 关闭websocket连接
+    // Clear session list refresh timer
+    if (this._sessionListRefreshTimer) {
+      clearTimeout(this._sessionListRefreshTimer);
+      this._sessionListRefreshTimer = null;
+    }
   },
   components: {
     MessageBox,
     ToolBar,
     OperatorPanel,
+    ChatHistorySidebar,
   },
-  mounted() {
+  async mounted() {
     // Show toolbar immediately for audio mode
     this.isShowToolBar = true;
     // Ensure initial state is disconnected
     this.isConnected = false;
     this.isConnecting = false;
     // User needs to click connect button to start
+    
+    // Load sessions list
+    await this.loadSessionsList();
+    
+    // 后台预加载所有会话消息（不阻塞UI）
+    this.preloadAllSessions();
   },
 };
 </script>
@@ -638,11 +909,15 @@ export default {
   height: 100%;
   padding: 24px;
   background: var(--va-bg-color);
+  display: flex;
+  gap: 24px;
   &__content {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 420px;
     gap: 24px;
     height: 100%;
+    flex: 1;
+    min-width: 0;
   }
   &__conversation {
     display: flex;
@@ -726,6 +1001,7 @@ export default {
 @media (max-width: 1200px) {
   .experience {
     padding: 12px;
+    flex-direction: column;
     &__content {
       grid-template-columns: 1fr;
     }
