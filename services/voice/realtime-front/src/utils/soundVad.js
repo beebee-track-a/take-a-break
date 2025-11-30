@@ -74,16 +74,71 @@ class SoundVadClass {
 
   // 开启声音监听
   async startListen({ isClientVad = true }) {
+    // 获取用户媒体流 with proper iOS-compatible constraints
+    const constraints = {
+      audio: {
+        echoCancellation: true,       // Request AEC
+        noiseSuppression: true,       // Request noise suppression
+        autoGainControl: true,        // Request AGC
+        voiceIsolation: true,         // iOS 17+ voice isolation
+        channelCount: 1,              // Mono channel
+        sampleRate: 48000,            // Safari is fine with 48k, better compatibility
+      },
+      video: false
+    }
+    
     // 获取用户媒体流
     const [err, stream] = await awaitTo(
-      getUserMedia({
-        audio: true
-      })
+      getUserMedia(constraints)
     )
     if (err) {
       this._handlePermissionError() // 获取权限失败
       return
     }
+    
+    // Debug: Verify Safari/iOS honored the constraints we requested
+    const [track] = stream.getAudioTracks()
+    const settings = track.getSettings()
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || 
+                  (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    
+    console.log('🎤 [SoundVad] Microphone initialized');
+    console.log('📱 [SoundVad] Platform:', isIOS ? 'iOS/iPadOS' : 'Other');
+    console.log('🔧 [SoundVad] All mic settings:', settings);
+    console.log('✅ [SoundVad] Echo cancellation:', settings.echoCancellation);
+    console.log('✅ [SoundVad] Noise suppression:', settings.noiseSuppression);
+    console.log('✅ [SoundVad] Auto gain control:', settings.autoGainControl);
+    console.log('✅ [SoundVad] Voice isolation:', settings.voiceIsolation || 'not supported');
+
+    // Try to re-apply constraints if they weren't honored (iOS Safari quirk)
+    if (settings.echoCancellation !== true) {
+      console.warn('⚠️ [SoundVad] Echo cancellation was NOT enabled! Attempting to re-apply...');
+      try {
+        await track.applyConstraints({ 
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        })
+        const newSettings = track.getSettings();
+        console.log('🔄 [SoundVad] Re-applied constraints. Echo cancellation now:', newSettings.echoCancellation);
+      } catch (applyErr) {
+        console.error('❌ [SoundVad] FAILED to apply echo cancellation:', applyErr);
+      }
+    } else {
+      console.log('✅ [SoundVad] Echo cancellation already enabled!');
+    }
+
+    // Try to apply voiceIsolation if supported (iOS 17+)
+    if (isIOS && settings.voiceIsolation !== true) {
+      try {
+        await track.applyConstraints({ voiceIsolation: true })
+        console.log('🎙️ [SoundVad] Applied voiceIsolation (iOS 17+)');
+      } catch (applyErr) {
+        // voiceIsolation might not be supported on older iOS versions - this is OK
+        console.log('ℹ️ [SoundVad] Voice isolation not available (requires iOS 17+)');
+      }
+    }
+
     let inputBuffer = null // 原始通道数据
     const bufferSize = isClientVad ? 4096 : 2048 // 缓冲区大小
     const vadFrame = isClientVad ? 3 : 6 // 帧，每帧4 * 1536 byte，约为100ms，用于VAD检测的有效片段

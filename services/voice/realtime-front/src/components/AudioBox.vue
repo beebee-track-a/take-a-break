@@ -256,6 +256,39 @@ export default {
         });
         this.waveSurfer.on("ready", (duration) => {
           this.readyState = true;
+                    
+          // iOS-specific audio settings to prevent echo
+          const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || 
+                        (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+          
+          if (isIOS) {
+            // Set remote audio volume for iOS - reduced to 0.3 for better echo prevention
+            try {
+              const mediaElement = this.waveSurfer.getMediaElement();
+              if (mediaElement) {
+                mediaElement.volume = 0.3;  // iOS volume set to 0.3 for aggressive echo prevention
+                // Ensure audio doesn't use echo-prone paths
+                mediaElement.muted = false;
+                
+                // Only set attributes if it's a standard HTML element
+                if (typeof mediaElement.setAttribute === 'function') {
+                  mediaElement.setAttribute('playsinline', 'true');
+                } else if (mediaElement.playsinline !== undefined) {
+                  mediaElement.playsinline = true;
+                }
+                
+                console.log('🔊 [AudioBox] iOS detected! Set remote audio volume to 0.3');
+                console.log('🎵 [AudioBox] Audio element properties:', {
+                  volume: mediaElement.volume,
+                  muted: mediaElement.muted,
+                  playsinline: mediaElement.playsinline || mediaElement.getAttribute?.('playsinline')
+                });
+              }
+            } catch (err) {
+              console.error('❌ [AudioBox] Could not set iOS audio volume:', err);
+            }
+          }
+          
           this.$emit("ready", duration);
         });
         this.waveSurfer.on("play", () => {
