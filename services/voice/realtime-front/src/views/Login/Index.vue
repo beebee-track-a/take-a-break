@@ -2,8 +2,7 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-header">
-        <h2>{{ isSignUp ? 'Sign Up' : 'Sign In' }}</h2>
-        <p class="subtitle">Voice Companion</p>
+        <h2>{{ isSignUp ? 'Sign Up' : 'Sign into Vently' }}</h2>
       </div>
 
       <el-form
