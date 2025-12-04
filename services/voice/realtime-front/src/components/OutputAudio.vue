@@ -28,7 +28,7 @@
       :options="{
         normalize: false,
         autoplay: true,
-        backend: 'WebAudio',
+        backend: 'MediaElement',
       }"
       :audioUrl="currentUrl"
       :zoomable="false"
@@ -377,6 +377,8 @@ export default {
       }
       this.currentUrl = "";
       this.isPlaying = false;
+      // Increment playIndex to skip the failed chunk (same as onFinish does)
+      this.playIndex++;
       // Try next chunk if available
       this.$nextTick(() => {
         const nextData = this.audioDataList[this.playIndex];
